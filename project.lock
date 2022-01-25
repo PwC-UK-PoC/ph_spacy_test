@@ -1,0 +1,134 @@
+preprocess:
+  cmd: python -m spacy run preprocess
+  script:
+    - python scripts/preprocess.py assets/train_raw.jsonl corpus/train_raw.spacy --text-only
+    - python scripts/preprocess.py assets/test_annotated.jsonl corpus/test_annotated.spacy
+  deps:
+    - path: assets/train_raw.jsonl
+      md5: fd58dfe79ab7d21a4e63d39149dc972f
+    - path: assets/test_annotated.jsonl
+      md5: 5abde33d98a7416ea7bd63d25f404904
+  outs:
+    - path: corpus/train_raw.spacy
+      md5: ae474a4625fa3f7bd55b39b806d82700
+    - path: corpus/test_annotated.spacy
+      md5: 975cd91c8d4feb90d26c55c885f8b92f
+  spacy_version: 3.2.1
+  spacy_git_version: 800737b41
+decompress:
+  cmd: python -m spacy run decompress
+  script:
+    - python scripts/decompress.py assets/crunchbase.json.gz assets/crunchbase.json
+    - python scripts/decompress.py assets/wikidata_tokenised.json.gz assets/wikidata_tokenised.json
+    - python scripts/decompress.py assets/btc.tar.gz assets/
+  deps:
+    - path: assets/crunchbase.json.gz
+      md5: 68f4cacd580fa1c30d1e5037880dabd4
+    - path: assets/wikidata_tokenised.json.gz
+      md5: 239f178322137a8ec0c30247eb7cd3c5
+    - path: assets/btc.tar.gz
+      md5: d87fbea72afec3de759b42e33720655b
+  outs:
+    - path: assets/crunchbase.json
+      md5: e5328f9eadaeeba2d25f0bdd052232b4
+    - path: assets/wikidata_tokenised.json
+      md5: 7eb34e924f7021ed1eb8cafd97c6a087
+    - path: assets/data/btc/
+      md5: 4b7f19de2bd3e6f0794724f1407b8900
+  spacy_version: 3.2.1
+  spacy_git_version: 800737b41
+augment:
+  cmd: python -m spacy run augment
+  script:
+    - python -m scripts.augment corpus/train_raw.spacy assets/hmm.pkl corpus/train_aug.spacy
+      corpus/dev_aug.spacy
+  deps:
+    - path: corpus/train_raw.spacy
+      md5: ae474a4625fa3f7bd55b39b806d82700
+    - path: assets/crunchbase.json
+      md5: e5328f9eadaeeba2d25f0bdd052232b4
+    - path: assets/wikidata_tokenised.json
+      md5: 7eb34e924f7021ed1eb8cafd97c6a087
+    - path: assets/first_names.json
+      md5: 2710d489bfb626e09a61944388510267
+    - path: assets/data/btc/
+      md5: 4b7f19de2bd3e6f0794724f1407b8900
+  outs:
+    - path: corpus/train_aug.spacy
+      md5: 326b375ad6d4d537472652f65725e168
+    - path: corpus/dev_aug.spacy
+      md5: c6006f213b8952847c4500d22dd8c507
+    - path: assets/hmm.pkl
+      md5: 2c0f013ee54ad2ff61ea2d5e6683be2e
+  spacy_version: 3.1.3
+  spacy_git_version: 8bda39f08
+train:
+  cmd: python -m spacy run train
+  script:
+    - python -m spacy train configs/config_no_augmenter.cfg --initialize.vectors en_core_web_lg
+      --output training/spacy-no-augmenter --paths.train corpus/train_aug.spacy --paths.dev
+      corpus/dev_aug.spacy
+  deps:
+    - path: corpus/train_aug.spacy
+      md5: 326b375ad6d4d537472652f65725e168
+    - path: corpus/dev_aug.spacy
+      md5: c6006f213b8952847c4500d22dd8c507
+  outs:
+    - path: training/spacy-no-augmenter/model-best
+      md5: 4401c71b2eb9874e10a78b30106f6766
+  spacy_version: 3.1.3
+  spacy_git_version: 8bda39f08
+train-with-augmenter:
+  cmd: python -m spacy run train-with-augmenter
+  script:
+    - python -m spacy train configs/config.cfg --initialize.vectors en_core_web_lg
+      --output training/spacy-augmenter/ --paths.train corpus/train_aug.spacy --paths.dev
+      corpus/dev_aug.spacy
+  deps:
+    - path: corpus/train_aug.spacy
+      md5: 326b375ad6d4d537472652f65725e168
+    - path: corpus/dev_aug.spacy
+      md5: c6006f213b8952847c4500d22dd8c507
+  outs:
+    - path: training/spacy-augmenter/model-best
+      md5: 11bd608744321bcc827940525f249477
+  spacy_version: 3.1.3
+  spacy_git_version: 8bda39f08
+evaluate:
+  cmd: python -m spacy run evaluate
+  script:
+    - python -m spacy evaluate en_core_web_lg corpus/test_annotated.spacy --output
+      metrics/baseline.json
+    - python -m spacy evaluate training/spacy-no-augmenter/model-best corpus/test_annotated.spacy
+      --output metrics/model_aug.json
+    - python -m spacy evaluate training/spacy-augmenter/model-best corpus/test_annotated.spacy
+      --output metrics/model_aug_spacy.json
+  deps:
+    - path: corpus/test_annotated.spacy
+      md5: 975cd91c8d4feb90d26c55c885f8b92f
+    - path: training/spacy-no-augmenter/model-best
+      md5: 4401c71b2eb9874e10a78b30106f6766
+    - path: training/spacy-augmenter/model-best
+      md5: 11bd608744321bcc827940525f249477
+  outs:
+    - path: metrics/baseline.json
+      md5: 33e72c13a68ea539a638cf4e5b247753
+    - path: metrics/model_aug.json
+      md5: d95874d58a6bcfca361ae2642b09d711
+    - path: metrics/model_aug_spacy.json
+      md5: 95e8dfd97180f69ee80516ce10ec8625
+  spacy_version: 3.1.3
+  spacy_git_version: 8bda39f08
+package:
+  cmd: python -m spacy run package
+  script:
+    - python -m spacy package training/spacy-no-augmenter/model-best packages --name
+      ner_tweets --version 1.0.0 --force
+  deps:
+    - path: training/spacy-no-augmenter/model-best
+      md5: 4401c71b2eb9874e10a78b30106f6766
+  outs:
+    - path: packages/en_ner_tweets-1.0.0/dist/en_ner_tweets-1.0.0.tar.gz
+      md5: f4473fcd573b66a5f7d49c67305103ec
+  spacy_version: 3.1.3
+  spacy_git_version: 8bda39f08
