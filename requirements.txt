@@ -43,7 +43,7 @@ murmurhash==1.0.5
     #   thinc
 nlpaug==1.1.7
     # via -r requirements.in
-numpy==1.21.2
+numpy==1.22.0
     # via
     #   blis
     #   hmmlearn
